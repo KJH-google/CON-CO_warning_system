@@ -340,4 +340,6 @@ if __name__ == "__main__":
     main()
 
 
+웹후크 = https://discord.com/api/webhooks/1313826821787226132/txS4YAXl6tm_5UWQVzSCX0rQRLGOOELs2a_9PIk3vMNALzxxX2r88bDJcZ6f0K5v_3oe
+
 
