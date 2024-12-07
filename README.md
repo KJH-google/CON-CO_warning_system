@@ -283,20 +283,34 @@ import csv
 import os
 
 # ===== 사용자 환경에 맞게 수정해야 하는 부분 =====
-PORT = "/dev/ttyACM0"  # Jetson Nano에서 Arduino 포트 확인 (예: /dev/ttyACM0, /dev/ttyUSB0)
-WEBHOOK_URL = "YOUR_DISCORD_WEBHOOK_URL"  # Discord Webhook URL
+PORT = "/dev/ttyACM0"  # Jetson Nano에서 Arduino 포트 확인 (예: /dev/ttyACM0)
+WEBHOOK_URL = "YOUR_DISCORD_WEBHOOK_URL"  # 실제 Discord Webhook URL
 CO_THRESHOLD = 50.0  # CO 임계값 (ppm)
 CSV_FILE_PATH = "/home/your_username/data/co_readings.csv"  # CSV 파일 저장 경로
 # ==============================================
 
-# CSV 저장을 위한 측정값 리스트 [(timestamp, ppm), ...]
-readings = []
+# CSV 파일 초기화 (헤더 쓰기)
+def init_csv_file(filename):
+    dir_path = os.path.dirname(filename)
+    if dir_path and not os.path.exists(dir_path):
+        os.makedirs(dir_path, exist_ok=True)
+    # 파일이 없을 경우 헤더 기록
+    if not os.path.exists(filename):
+        with open(filename, mode='w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(["timestamp", "ppm"])
+        print(f"CSV 파일 생성 및 헤더 작성 완료: {filename}")
+
+def append_csv_file(filename, timestamp_str, ppm_value):
+    with open(filename, mode='a', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow([timestamp_str, ppm_value])
 
 def send_discord_alert(ppm):
     """CO 농도가 임계값 이상일 때 Discord로 알림 전송"""
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     data = {
-        "content": "@here",  # 푸시 알림을 위해 멘션 사용(@everyone/@here/특정 롤)
+        "content": "@here",
         "embeds": [{
             "title": "⚠️ CO 농도 경고 ⚠️",
             "description": f"현재 CO 농도는 {ppm:.2f} ppm 입니다.",
@@ -318,30 +332,10 @@ def send_discord_alert(ppm):
     except Exception as e:
         print(f"디스코드 알림 오류: {str(e)}")
 
-def write_csv_file(filename, data):
-    """
-    CSV 파일 작성 함수.
-    data: [(timestamp_str, ppm_float), ...]
-    filename: 저장할 CSV 파일 경로 (예: /home/your_username/data/co_readings.csv)
-    """
-    # 디렉토리가 없는 경우 생성(옵션)
-    dir_path = os.path.dirname(filename)
-    if dir_path and not os.path.exists(dir_path):
-        os.makedirs(dir_path, exist_ok=True)
-
-    header = ["timestamp", "ppm"]
-    try:
-        with open(filename, mode='w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-            for row in data:
-                writer.writerow(row)
-        print(f"CSV 파일 저장 완료: {filename}")
-    except Exception as e:
-        print(f"CSV 파일 저장 오류: {str(e)}")
-
 def main():
-    global readings
+    # CSV 헤더 초기화
+    init_csv_file(CSV_FILE_PATH)
+
     try:
         ser = serial.Serial(PORT, 9600, timeout=1)
         print(f"Arduino 연결됨: {PORT}")
@@ -353,9 +347,12 @@ def main():
                 try:
                     ppm = float(line)
                     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    readings.append((current_time, ppm))  # 측정값 저장
                     print(f"CO 농도: {ppm:.2f} ppm")
 
+                    # 측정 시점마다 바로 CSV 파일에 기록
+                    append_csv_file(CSV_FILE_PATH, current_time, ppm)
+
+                    # 임계값 초과 시 Discord 알림
                     if ppm >= CO_THRESHOLD:
                         send_discord_alert(ppm)
                 except ValueError:
@@ -367,15 +364,13 @@ def main():
     except KeyboardInterrupt:
         print("프로그램 종료 요청 받음")
     finally:
-        # 프로그램 종료 시 CSV 파일 저장
-        if readings:
-            write_csv_file(CSV_FILE_PATH, readings)
         if 'ser' in locals() and ser.is_open:
             ser.close()
             print("시리얼 포트 닫힘")
 
 if __name__ == "__main__":
     main()
+
 
 
 
