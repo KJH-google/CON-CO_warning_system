@@ -234,12 +234,12 @@ if __name__ == "__main__":
 
 
 
+<최종코드>
 
 
 
 
-
-
+<아두이노 IDE>
 const int MQ7_AOUT_PIN = A0;  // MQ-7 센서 아날로그 출력 핀
 const int buzzerPin = 8;      // 피에조 부저 연결 핀 (디지털 핀 8)
 const float VCC = 5.0;       
@@ -309,7 +309,7 @@ void loop() {
 
 --------------------------------
 
-
+<Python>
 
 
 import serial
