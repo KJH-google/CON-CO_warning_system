@@ -247,7 +247,6 @@ const float RL = 10.0;
 const float R0 = 10.0;       
 const float a = 100.0;       
 const float b = -1.5;        
-const float CO_THRESHOLD = 50.0; // 임계값 (ppm)
 
 void setup() {
   Serial.begin(9600);
@@ -265,15 +264,40 @@ void loop() {
   // ppm 값을 시리얼로 전송
   Serial.println(ppm);
 
-  // 임계치 초과 시 부저 울림
-  if (ppm >= CO_THRESHOLD) {
-    digitalWrite(buzzerPin, HIGH);
+  // 상태 판단
+  // 정상: ppm < 200
+  // 주의: 200 ≤ ppm < 800
+  // 위험: 800 ≤ ppm < 3200
+  // 매우 위험: ppm ≥ 3200
+  if (ppm < 200) {
+    // 정상: 부저 꺼짐
+    noTone(buzzerPin);
+  } else if (ppm < 800) {
+    // 주의: 낮은 톤(1000Hz)으로 짧게 울림
+    // 1초 루프 내에서 짧게 200ms 울리고 꺼짐
+    tone(buzzerPin, 1000, 200);
+    delay(200);
+    noTone(buzzerPin);
+    // 나머지 시간 대기
+  } else if (ppm < 3200) {
+    // 위험: 중간 톤(2000Hz)으로 울림
+    // 조금 더 길게 500ms 울리고 500ms 꺼짐 (총 1초 주기)
+    tone(buzzerPin, 2000, 500);
+    delay(500);
+    noTone(buzzerPin);
+    delay(500);
   } else {
-    digitalWrite(buzzerPin, LOW);
+    // 매우 위험: 높은 톤(3000Hz)으로 계속 울림
+    // 여기서는 tone을 계속 주기 어렵기 때문에 다음 루프에서도 같은 상태이면 연속음에 가깝게
+    tone(buzzerPin, 3000); 
+    // 1초 기다린 후 다시 loop 진입 -> 사실상 계속 울림
+    delay(1000);
+    return; // 아래 delay(1000)로 안 내려가도록
   }
 
-  delay(1000); // 1초 간격 측정
+  delay(1000); // 다음 측정까지 1초 대기
 }
+
 
 
 
@@ -298,11 +322,15 @@ import os
 # ===== 사용자 환경에 맞게 수정해야 하는 부분 =====
 PORT = "/dev/ttyACM0"  # Jetson Nano에서 Arduino 포트 확인 (예: /dev/ttyACM0)
 WEBHOOK_URL = "YOUR_DISCORD_WEBHOOK_URL"  # 실제 Discord Webhook URL
-CO_THRESHOLD = 50.0  # CO 임계값 (ppm)
 CSV_FILE_PATH = "/home/your_username/data/co_readings.csv"  # CSV 파일 저장 경로
 # ==============================================
 
-# CSV 파일 초기화 (헤더 쓰기)
+# 상태 기준
+# 정상: ppm < 200
+# 주의: 200 ≤ ppm < 800
+# 위험: 800 ≤ ppm < 3200
+# 매우 위험: ppm ≥ 3200
+
 def init_csv_file(filename):
     dir_path = os.path.dirname(filename)
     if dir_path and not os.path.exists(dir_path):
@@ -319,17 +347,31 @@ def append_csv_file(filename, timestamp_str, ppm_value):
         writer = csv.writer(f)
         writer.writerow([timestamp_str, ppm_value])
 
+def get_co_status(ppm):
+    if ppm < 200:
+        return "정상", 0x00FF00  # Green
+    elif ppm < 800:
+        return "주의", 0xFFFF00  # Yellow
+    elif ppm < 3200:
+        return "위험", 0xFFA500  # Orange-ish
+    else:
+        return "매우 위험", 0xFF0000  # Red
+
 def send_discord_alert(ppm):
-    """CO 농도가 임계값 이상일 때 Discord로 알림 전송"""
+    """CO 농도별 단계 알림 전송"""
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    status, color = get_co_status(ppm)
+    description = f"현재 CO 농도는 {ppm:.2f} ppm 입니다."
+    title = f"⚠️ CO {status} 상태 ⚠️"
+    
     data = {
         "content": "@here",
         "embeds": [{
-            "title": "⚠️ CO 농도 경고 ⚠️",
-            "description": f"현재 CO 농도는 {ppm:.2f} ppm 입니다.",
-            "color": 0xFF0000 if ppm >= CO_THRESHOLD else 0xFFFF00,
+            "title": title,
+            "description": description,
+            "color": color,
             "fields": [
-                {"name": "상태", "value": "위험" if ppm >= CO_THRESHOLD else "정상", "inline": True},
+                {"name": "상태", "value": status, "inline": True},
                 {"name": "측정 시간", "value": current_time, "inline": False}
             ],
             "footer": {"text": "CO 모니터링 시스템"}
@@ -339,14 +381,13 @@ def send_discord_alert(ppm):
     try:
         response = requests.post(WEBHOOK_URL, json=data)
         if response.status_code == 204:
-            print(f"[{current_time}] 디스코드 알림 전송 성공: {ppm:.2f} ppm")
+            print(f"[{current_time}] 디스코드 알림 전송 성공: {ppm:.2f} ppm ({status})")
         else:
             print(f"디스코드 알림 전송 실패: {response.status_code}")
     except Exception as e:
         print(f"디스코드 알림 오류: {str(e)}")
 
 def main():
-    # CSV 헤더 초기화
     init_csv_file(CSV_FILE_PATH)
 
     try:
@@ -354,20 +395,27 @@ def main():
         print(f"Arduino 연결됨: {PORT}")
         time.sleep(2)  # 시리얼 초기화 대기 시간
 
+        last_alert_status = "정상"  # 이전에 보낸 알림 상태를 추적하여 불필요한 반복 알림 방지 가능(옵션)
+        
         while True:
             if ser.in_waiting > 0:
                 line = ser.readline().decode('utf-8').strip()
                 try:
                     ppm = float(line)
                     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    append_csv_file(CSV_FILE_PATH, current_time, ppm)
                     print(f"CO 농도: {ppm:.2f} ppm")
 
-                    # 측정 시점마다 바로 CSV 파일에 기록
-                    append_csv_file(CSV_FILE_PATH, current_time, ppm)
+                    # 상태 판단
+                    status, _ = get_co_status(ppm)
 
-                    # 임계값 초과 시 Discord 알림
-                    if ppm >= CO_THRESHOLD:
+                    # 정상일 때는 알림 필요 없다고 가정(원하면 조건 수정)
+                    if status in ["주의", "위험", "매우 위험"]:
+                        # 상태별로 조건
+                        # 이전 상태와 동일한 상태라면 계속 알림 보내지 않도록 할 수도 있음.
+                        # 여기서는 매번 임계 이상이면 알림 보내도록 유지.
                         send_discord_alert(ppm)
+
                 except ValueError:
                     print(f"잘못된 데이터 수신: {line}")
             time.sleep(1)
