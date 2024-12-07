@@ -217,3 +217,127 @@ if __name__ == "__main__":
     main()
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const int MQ7_AOUT_PIN = A0; // MQ-7의 아날로그 출력 핀
+
+const float VCC = 5.0;       // Arduino 공급 전압 (5V)
+const float RL = 10.0;       // 로드 저항 값(kΩ)
+const float R0 = 10.0;       // 깨끗한 공기에서 센서 기준 저항(kΩ)
+const float a = 100.0;       // MQ-7 센서 곡선 파라미터 (데이터시트 기반)
+const float b = -1.5;        // MQ-7 센서 곡선 파라미터 (데이터시트 기반)
+
+void setup() {
+  Serial.begin(9600); // 시리얼 통신 시작
+}
+
+void loop() {
+  int sensorValue = analogRead(MQ7_AOUT_PIN); // 센서 값(0~1023)
+  float voltage = (sensorValue / 1023.0) * VCC;
+  float RS = RL * (VCC - voltage) / voltage;   
+  float ratio = RS / R0;                       
+  float ppm = a * pow(ratio, b);               
+
+  Serial.println(ppm); // CO 농도 PPM 출력
+  delay(1000); // 1초 간격
+}
+
+
+
+
+
+
+
+
+--------------------------------
+
+
+
+
+import serial
+import time
+import requests
+from datetime import datetime
+
+PORT = "COM3"  # Windows 예시, Linux/Mac: /dev/ttyUSB0 등
+BAUDRATE = 9600
+WEBHOOK_URL = "DISCORD_WEBHOOK_URL"  # 실제 webhook URL로 변경
+CO_THRESHOLD = 50.0  # 임계값 설정
+
+def send_discord_alert(ppm):
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data = {
+        "embeds": [{
+            "title": "⚠️ CO 농도 경고 ⚠️",
+            "description": f"현재 CO 농도는 {ppm:.2f} ppm 입니다.",
+            "color": 0xFF0000 if ppm >= CO_THRESHOLD else 0xFFFF00,
+            "fields": [
+                {"name": "상태", "value": "위험" if ppm >= CO_THRESHOLD else "정상", "inline": True},
+                {"name": "측정 시간", "value": current_time, "inline": False}
+            ],
+            "footer": {"text": "CO 모니터링 시스템"}
+        }]
+    }
+
+    try:
+        response = requests.post(WEBHOOK_URL, json=data)
+        if response.status_code == 204:
+            print(f"[{current_time}] 디스코드 알림 전송 성공: {ppm:.2f} ppm")
+        else:
+            print(f"디스코드 알림 전송 실패: {response.status_code}")
+    except Exception as e:
+        print(f"디스코드 알림 오류: {str(e)}")
+
+def main():
+    try:
+        ser = serial.Serial(PORT, BAUDRATE, timeout=1)
+        print(f"Arduino 연결됨: {PORT}")
+        time.sleep(2)  # 초기화 대기
+
+        while True:
+            if ser.in_waiting > 0:
+                line = ser.readline().decode('utf-8').strip()
+                try:
+                    ppm = float(line)
+                    print(f"CO 농도: {ppm:.2f} ppm")
+                    if ppm >= CO_THRESHOLD:
+                        send_discord_alert(ppm)
+                except ValueError:
+                    print(f"잘못된 데이터 수신: {line}")
+            time.sleep(1)
+
+    except serial.SerialException as e:
+        print(f"시리얼 연결 오류: {str(e)}")
+    except KeyboardInterrupt:
+        print("프로그램 종료")
+    finally:
+        if 'ser' in locals() and ser.is_open:
+            ser.close()
+            print("시리얼 포트 닫힘")
+
+if __name__ == "__main__":
+    main()
+
+
+
