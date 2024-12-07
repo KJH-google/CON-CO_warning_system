@@ -393,11 +393,6 @@ if __name__ == "__main__":
 
 
 
-avrdude: stk500_paged_load(): (a) protocol error, expect=0x10, resp=0x00
-avrdude: stk500_cmd(): programmer is out of sync
-avr_read(): error reading address 0x0000
-    read operation not supported for memory "flash"
-avrdude: failed to read all of flash memory, rc=-2
-avrdude: stk500_disable(): protocol error, expect=0x14, resp=0x00
+
 
 
