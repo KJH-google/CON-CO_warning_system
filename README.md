@@ -240,28 +240,41 @@ if __name__ == "__main__":
 
 
 
-const int MQ7_AOUT_PIN = A0; // MQ-7의 아날로그 출력 핀
-
-const float VCC = 5.0;       // Arduino 공급 전압 (5V)
-const float RL = 10.0;       // 로드 저항 값(kΩ)
-const float R0 = 10.0;       // 깨끗한 공기에서 센서 기준 저항(kΩ)
-const float a = 100.0;       // MQ-7 센서 곡선 파라미터 (데이터시트 기반)
-const float b = -1.5;        // MQ-7 센서 곡선 파라미터 (데이터시트 기반)
+const int MQ7_AOUT_PIN = A0;  // MQ-7 센서 아날로그 출력 핀
+const int buzzerPin = 8;      // 피에조 부저 연결 핀 (디지털 핀 8)
+const float VCC = 5.0;       
+const float RL = 10.0;       
+const float R0 = 10.0;       
+const float a = 100.0;       
+const float b = -1.5;        
+const float CO_THRESHOLD = 50.0; // 임계값 (ppm)
 
 void setup() {
-  Serial.begin(9600); // 시리얼 통신 시작
+  Serial.begin(9600);
+  pinMode(buzzerPin, OUTPUT);
+  digitalWrite(buzzerPin, LOW); // 초기 상태: 부저 OFF
 }
 
 void loop() {
-  int sensorValue = analogRead(MQ7_AOUT_PIN); // 센서 값(0~1023)
+  int sensorValue = analogRead(MQ7_AOUT_PIN);
   float voltage = (sensorValue / 1023.0) * VCC;
-  float RS = RL * (VCC - voltage) / voltage;   
-  float ratio = RS / R0;                       
-  float ppm = a * pow(ratio, b);               
+  float RS = RL * (VCC - voltage) / voltage;
+  float ratio = RS / R0;
+  float ppm = a * pow(ratio, b);
 
-  Serial.println(ppm); // CO 농도 PPM 출력
-  delay(1000); // 1초 간격
+  // ppm 값을 시리얼로 전송
+  Serial.println(ppm);
+
+  // 임계치 초과 시 부저 울림
+  if (ppm >= CO_THRESHOLD) {
+    digitalWrite(buzzerPin, HIGH);
+  } else {
+    digitalWrite(buzzerPin, LOW);
+  }
+
+  delay(1000); // 1초 간격 측정
 }
+
 
 
 
