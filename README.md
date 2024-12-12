@@ -1176,3 +1176,9 @@ if __name__ == "__main__":
     finally:
         if 'ser' in locals() and ser.is_open:
             ser.close()
+
+
+
+
+            ChatCompletionMessage(content=None, refusal=None, role='assistant', audio=None, function_call=FunctionCall(arguments='{"threshold":10}', name='predict_ventilation_time'), tool_calls=None)
+
