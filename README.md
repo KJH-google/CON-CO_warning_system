@@ -671,7 +671,7 @@ if __name__ == "__main__":
 import serial
 import time
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta  # 여기로 timedelta 이동
 import csv
 import os
 import numpy as np
@@ -683,8 +683,6 @@ import json
 PORT = "/dev/ttyUSB0"  # Jetson Nano에서 Arduino 포트 확인 (예: /dev/ttyACM0)
 WEBHOOK_URL = "https://discord.com/api/webhooks/1313826821787226132/txS4YAXl6tm_5UWQVzSCX0rQRLGOOELs2a_9PIk3vMNALzxxX2r88bDJcZ6f0K5v_3oe"  # 실제 Discord Webhook URL
 CSV_FILE_PATH = "/home/dli/CO_ver2/co_readings_gradio.csv"  # CSV 파일 저장 경로
-
-# ==============================================
 
 # 상태 기준
 # 정상: ppm < 200
@@ -719,7 +717,6 @@ def get_co_status(ppm):
         return "매우 위험", 0xFF0000  # Red
 
 def send_discord_alert(ppm):
-    """CO 농도별 단계 알림 전송"""
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     status, color = get_co_status(ppm)
     description = f"현재 CO 농도는 {ppm:.2f} ppm 입니다."
@@ -748,35 +745,25 @@ def send_discord_alert(ppm):
     except Exception as e:
         print(f"디스코드 알림 오류: {str(e)}")
 
-# 최근 1분간 데이터 저장용 (1초 간격 -> 60개 데이터)
+# 최근 1분간 데이터 저장용 (1초 간격 -> 최대 60개 데이터)
 ppm_buffer = []
 
 def add_ppm_data(ppm):
     ppm_buffer.append((datetime.now(), ppm))
-    # 1분보다 오래된 데이터 제거
     cutoff = datetime.now() - timedelta(seconds=60)
-    # timedelta import를 위해 위 코드 상단에 from datetime import datetime, timedelta 추가해야 함
     while ppm_buffer and ppm_buffer[0][0] < cutoff:
         ppm_buffer.pop(0)
 
 def predict_time_to_reach_threshold(threshold):
-    # 최근 1분간 데이터 사용
-    # ppm_buffer: [(time, ppm), ...]
     if len(ppm_buffer) < 2:
         return "데이터가 충분하지 않아 예측 불가합니다."
 
-    # 시간축을 초 단위로 변환
     base_time = ppm_buffer[0][0]
     times = np.array([(t[0]-base_time).total_seconds() for t in ppm_buffer])
     ppms = np.array([t[1] for t in ppm_buffer])
 
-    # 선형 회귀
-    # y = m*x + c
-    # np.polyfit(x, y, 1) -> (m, c)
     m, c = np.polyfit(times, ppms, 1)
 
-    # 현재 마지막 값 기준으로 앞으로도 m(기울기)로 증가한다고 가정
-    # threshold = m*x + c -> x = (threshold - c)/m
     if m <= 0:
         return "CO 농도가 증가하는 추세가 아닙니다. 환기가 급하지 않을 수 있습니다."
 
@@ -789,7 +776,6 @@ def predict_time_to_reach_threshold(threshold):
     delta = x_threshold - current_time_sec
     return f"{int(delta)}초 후에 CO 농도가 {threshold}ppm에 도달할 것으로 예상됩니다."
 
-# OpenAI Function 정의
 functions = [
     {
         "name": "predict_ventilation_time",
@@ -832,15 +818,13 @@ def openai_chat(query):
             "predict_time_to_reach_threshold": predict_time_to_reach_threshold
         }
 
-    # assistant의 reply를 대화 히스토리에 추가
-        messages.append(response_message)
+        messages.append({"role": response_message.role, "content": response_message.content})
 
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_to_call = available_functions.get(function_name)
 
             if not function_to_call:
-            # 해당 함수가 없는 경우 처리
                 proc_messages.append({
                     "role": "assistant",
                     "content": f"요청한 함수({function_name})를 찾을 수 없습니다."
@@ -848,12 +832,8 @@ def openai_chat(query):
                 continue
 
             function_args = json.loads(tool_call.function.arguments)
-
-        # 함수 호출
-        # 예: predict_time_to_reach_threshold(threshold=...)
             function_response = function_to_call(**function_args)
 
-        # 함수 응답을 메시지에 추가
             proc_messages.append(
                 {
                     "tool_call_id": tool_call.id,
@@ -863,10 +843,9 @@ def openai_chat(query):
                 }
             )
 
-    # 함수 응답 메시지를 전체 대화에 추가
         messages += proc_messages
 
-    # 함수 호출 후 다시 모델에 요청해 최종 답변 받기
+        # 다시 모델 호출
         second_response = client.chat.completions.create(
             model='gpt-4o-mini',
             messages=messages,
@@ -874,36 +853,27 @@ def openai_chat(query):
 
         assistant_message = second_response.choices[0].message.content
         return assistant_message
-
     else:
-    # 함수 호출 없이 직접 답변한 경우
         return response_message.content
-
 
 def gradio_interface(query):
     answer = openai_chat(query)
     return answer
 
-
-
-# Gradio 인터페이스
 iface = gr.Interface(fn=gradio_interface,
                      inputs="text",
                      outputs="text",
                      title="CO 모니터링 & 예측 챗봇",
                      description="CO 농도 상태 및 환기가 필요한 시간 예측")
 
-# 메인 로직 (CO 측정)
 if __name__ == "__main__":
-    from datetime import timedelta
     init_csv_file(CSV_FILE_PATH)
 
     try:
         ser = serial.Serial(PORT, 9600, timeout=1)
         print(f"Arduino 연결됨: {PORT}")
-        time.sleep(1)  # 시리얼 초기화 대기 시간
+        time.sleep(1)
 
-        # Gradio 인터페이스 별도 스레드에서 실행
         import threading
         server_thread = threading.Thread(target=iface.launch, kwargs={"server_name":"0.0.0.0","server_port":7860}, daemon=True)
         server_thread.start()
@@ -926,7 +896,6 @@ if __name__ == "__main__":
                 except ValueError:
                     print(f"잘못된 데이터 수신: {line}")
 
-            # 측정 주기 1초
             time.sleep(1)
 
     except serial.SerialException as e:
