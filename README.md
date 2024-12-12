@@ -666,6 +666,31 @@ if __name__ == "__main__":
 
 
 
+Traceback (most recent call last):
+  File "/home/dli/myenv/lib/python3.8/site-packages/gradio/queueing.py", line 536, in process_events
+    response = await route_utils.call_process_api(
+  File "/home/dli/myenv/lib/python3.8/site-packages/gradio/route_utils.py", line 322, in call_process_api
+    output = await app.get_blocks().process_api(
+  File "/home/dli/myenv/lib/python3.8/site-packages/gradio/blocks.py", line 1935, in process_api
+    result = await self.call_function(
+  File "/home/dli/myenv/lib/python3.8/site-packages/gradio/blocks.py", line 1520, in call_function
+    prediction = await anyio.to_thread.run_sync(  # type: ignore
+  File "/home/dli/myenv/lib/python3.8/site-packages/anyio/to_thread.py", line 56, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+  File "/home/dli/myenv/lib/python3.8/site-packages/anyio/_backends/_asyncio.py", line 2364, in run_sync_in_worker_thread
+    return await future
+  File "/home/dli/myenv/lib/python3.8/site-packages/anyio/_backends/_asyncio.py", line 864, in run
+    result = context.run(func, *args)
+  File "/home/dli/myenv/lib/python3.8/site-packages/gradio/utils.py", line 826, in wrapper
+    response = f(*args, **kwargs)
+  File "co_monitor.py", line 165, in gradio_interface
+    answer = openai_chat(query)
+  File "co_monitor.py", line 145, in openai_chat
+    response = openai.ChatCompletion.create(
+  File "/home/dli/myenv/lib/python3.8/site-packages/openai/lib/_old_api.py", line 39, in __call__
+    raise APIRemovedInV1(symbol=self._symbol)
+openai.lib._old_api.APIRemovedInV1: 
+
 You tried to access openai.ChatCompletion, but this is no longer supported in openai>=1.0.0 - see the README at https://github.com/openai/openai-python for the API.
 
 You can run `openai migrate` to automatically upgrade your codebase to use the 1.0.0 interface. 
@@ -673,5 +698,7 @@ You can run `openai migrate` to automatically upgrade your codebase to use the 1
 Alternatively, you can pin your installation to the old version, e.g. `pip install openai==0.28`
 
 A detailed migration guide is available here: https://github.com/openai/openai-python/discussions/742
+
+)
 
 
