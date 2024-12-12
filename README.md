@@ -668,7 +668,6 @@ if __name__ == "__main__":
 
 
 
-
 import serial
 import time
 import requests
@@ -824,68 +823,68 @@ def openai_chat(query):
         function_call="auto"
     )
 
-    
-proc_messages = []
-response_message = response.choices[0].message
-tool_calls = response_message.tool_calls
+    proc_messages = []
+    response_message = response.choices[0].message
+    tool_calls = response_message.tool_calls
 
-if tool_calls:
-    available_functions = {
-        "predict_time_to_reach_threshold": predict_time_to_reach_threshold
-    }
+    if tool_calls:
+        available_functions = {
+            "predict_time_to_reach_threshold": predict_time_to_reach_threshold
+        }
 
     # assistant의 reply를 대화 히스토리에 추가
-    messages.append(response_message)
+        messages.append(response_message)
 
-    for tool_call in tool_calls:
-        function_name = tool_call.function.name
-        function_to_call = available_functions.get(function_name)
+        for tool_call in tool_calls:
+            function_name = tool_call.function.name
+            function_to_call = available_functions.get(function_name)
 
-        if not function_to_call:
+            if not function_to_call:
             # 해당 함수가 없는 경우 처리
-            proc_messages.append({
-                "role": "assistant",
-                "content": f"요청한 함수({function_name})를 찾을 수 없습니다."
-            })
-            continue
+                proc_messages.append({
+                    "role": "assistant",
+                    "content": f"요청한 함수({function_name})를 찾을 수 없습니다."
+                })
+                continue
 
-        function_args = json.loads(tool_call.function.arguments)
+            function_args = json.loads(tool_call.function.arguments)
 
         # 함수 호출
         # 예: predict_time_to_reach_threshold(threshold=...)
-        function_response = function_to_call(**function_args)
+            function_response = function_to_call(**function_args)
 
         # 함수 응답을 메시지에 추가
-        proc_messages.append(
-            {
-                "tool_call_id": tool_call.id,
-                "role": "tool",
-                "name": function_name,
-                "content": function_response,
-            }
-        )
+            proc_messages.append(
+                {
+                    "tool_call_id": tool_call.id,
+                    "role": "tool",
+                    "name": function_name,
+                    "content": function_response,
+                }
+            )
 
     # 함수 응답 메시지를 전체 대화에 추가
-    messages += proc_messages
+        messages += proc_messages
 
     # 함수 호출 후 다시 모델에 요청해 최종 답변 받기
-    second_response = client.chat.completions.create(
-        model='gpt-4o-mini',
-        messages=messages,
-    )
+        second_response = client.chat.completions.create(
+            model='gpt-4o-mini',
+            messages=messages,
+        )
 
-    assistant_message = second_response.choices[0].message.content
-    return assistant_message
+        assistant_message = second_response.choices[0].message.content
+        return assistant_message
 
-else:
+    else:
     # 함수 호출 없이 직접 답변한 경우
-    return response_message["content"]
-
+        return response_message.content
 
 
 def gradio_interface(query):
     answer = openai_chat(query)
     return answer
+
+
 
 # Gradio 인터페이스
 iface = gr.Interface(fn=gradio_interface,
@@ -937,5 +936,3 @@ if __name__ == "__main__":
     finally:
         if 'ser' in locals() and ser.is_open:
             ser.close()
-
-
