@@ -1022,3 +1022,6 @@ if __name__ == "__main__":
  "nbformat_minor": 5
 }
 
+![Screenshot from 2024-12-13 20-48-10](https://github.com/user-attachments/assets/f1cb853d-dd1e-4a80-a81a-52fcf155651d)
+![Screenshot from 2024-12-13 20-50-57](https://github.com/user-attachments/assets/11995ad3-e7c1-43f3-955a-b9b380093375)
+[co_readings.csv](https://github.com/user-attachments/files/18126198/co_readings.csv)[co_readings_Beta.csv](https://github.com/user-attachments/files/18126199/co_readings_Beta.csv)
