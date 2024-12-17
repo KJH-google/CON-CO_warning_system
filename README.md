@@ -1029,7 +1029,7 @@ if __name__ == "__main__":
 
 
 
-
+# <RO 보정 아두이노IDE>
 
 const int MQ7_PIN = A0;   // MQ-7 센서 아날로그 출력 핀
 const float VCC = 5.0;    // Arduino 공급 전압
