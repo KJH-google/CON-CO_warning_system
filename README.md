@@ -1025,3 +1025,63 @@ if __name__ == "__main__":
 ![Screenshot from 2024-12-13 20-48-10](https://github.com/user-attachments/assets/f1cb853d-dd1e-4a80-a81a-52fcf155651d)
 ![Screenshot from 2024-12-13 20-50-57](https://github.com/user-attachments/assets/11995ad3-e7c1-43f3-955a-b9b380093375)
 [co_readings.csv](https://github.com/user-attachments/files/18126198/co_readings.csv)[co_readings_Beta.csv](https://github.com/user-attachments/files/18126199/co_readings_Beta.csv)
+
+
+
+
+
+
+const int MQ7_PIN = A0;   // MQ-7 센서 아날로그 출력 핀
+const float VCC = 5.0;    // Arduino 공급 전압
+const float RL = 10.0;    // 로드 저항값(kΩ) - 사용자가 회로 설계 시 정한 값
+const float CLEAN_AIR_RATIO = 10.0; // 깨끗한 공기에서 RS/R0 비율 (예: MQ-7 데이터시트 참조)
+float R0 = 10.0; // 초기값, 실제 보정 후에 업데이트
+
+void setup() {
+  Serial.begin(9600);
+  // 센서 예열 시간 (예: MQ-7은 10~20분 이상 권장, 여기서는 간단히 2분 예)
+  // 실제로는 setup 후 일정 시간 대기하거나, 측정 시작 전 기다린 후 보정할 것.
+  Serial.println("Sensor preheating...");
+  delay(120000); // 2분 예열 (실제 권장시간 확인)
+
+  Serial.println("Calibrating R0. Please ensure the sensor is in clean air.");
+  // 보정 측정값 여러 번 읽기 (예: 50회) 평균을 내어 안정적인 값 사용.
+  float avgRS = 0;
+  int numReadings = 50;
+  for (int i = 0; i < numReadings; i++) {
+    float sensorValue = analogRead(MQ7_PIN);
+    float voltage = (sensorValue / 1023.0) * VCC;
+    float RS = RL * (VCC - voltage) / voltage; // RS 계산식
+    avgRS += RS;
+    delay(200); // 각 측정 사이 약간 대기
+  }
+  avgRS = avgRS / numReadings; // 평균 RS
+
+  // R0 계산: R0 = RS / (RS/R0(clean air))
+  R0 = avgRS / CLEAN_AIR_RATIO;
+
+  Serial.print("Calibrated R0: ");
+  Serial.println(R0, 4);
+}
+
+void loop() {
+  // 보정 완료 후, ppm 계산 시 R0 사용 예제
+  // ppm = a * (RS/R0)^b 형태를 사용
+  // 여기서는 단순히 R0가 제대로 계산되었는지 확인하는 코드만 둠.
+  
+  float sensorValue = analogRead(MQ7_PIN);
+  float voltage = (sensorValue / 1023.0) * VCC;
+  float RS = RL * (VCC - voltage) / voltage;
+  float ratio = RS / R0;  // Ratio = RS/R0
+
+  // 예: MQ-7 데이터시트 곡선 상수 a,b 정의 후 ppm 계산 가능
+  // float a = 100.0;
+  // float b = -1.5;
+  // float ppm = a * pow(ratio, b);
+
+  Serial.print("RS: "); Serial.print(RS);
+  Serial.print(" R0: "); Serial.print(R0);
+  Serial.print(" Ratio: "); Serial.println(ratio);
+  
+  delay(1000);
+}
