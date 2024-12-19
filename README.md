@@ -97,8 +97,7 @@ void loop() {
 
 * 능동 피에조 부저를 설치해 특정 CO 농도(ppm)에서 소리 알람이 발생하도록 설계한다.
     * 설정한 CO 농도값에 따라 다른 주파수와 소리 지속 시간, 소리 대기 시간이 존재함.
-    * <img src="https://github.com/user-attachments/assets/de122de4-284f-4aa0-be5b-d4271abc755c" alt="image" width="50%" />
-
+    * <img src="https://github.com/user-attachments/assets/4500ca61-1a3a-4d56-9176-fa78024b690e" alt="image" width="50%" />
 
 
 
@@ -114,7 +113,7 @@ void loop() {
 > * 그러나 실험 진행 중에 농도가 충분히 높이 올라가지 않았고, 여건상 높은 CO 농도를 측정하기 어려움이 있었다.
 >    * 양초 1개/5개, 작은 크기의 숯으로 시도하였으나 여전히 낮은 농도에 머무름.
 >    * 해결 방법 : 설정 기준치를 변경함.
->        * <img src="https://github.com/user-attachments/assets/ab9dee1c-4524-4301-b318-69248710e9f6" width="50%" />
+>        * <img src="https://github.com/user-attachments/assets/de122de4-284f-4aa0-be5b-d4271abc755c" alt="image" width="50%" />
 
 
 * MQ-7 가스 센서, 부저 알림 아두이노 IDE
