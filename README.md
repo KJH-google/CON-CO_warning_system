@@ -314,12 +314,10 @@ void sendToDiscord(float ppm) {
     }
 
     http.end(); // HTTP 연결 종료
-
-* 위의 코드는 디스코드 알람을 보내는 방법 중 WIFI 모듈을 이용하는 방법으로 WIFI 모듈이 없는 관계상 밑의 Python의 serial과 time, requests를 이용한 방법으로 수정
   
 </code>
 </pre>
-
+* 위의 코드는 디스코드 알람을 보내는 방법 중 WIFI 모듈을 이용하는 방법으로 WIFI 모듈이 없는 관계상 밑의 Python의 serial과 time, requests를 이용한 방법으로 수정
 * Python 코드
 <pre>
 <code>
