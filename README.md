@@ -97,7 +97,9 @@ void loop() {
 
 * 능동 피에조 부저를 설치해 특정 CO 농도(ppm)에서 소리 알람이 발생하도록 설계한다.
     * 설정한 CO 농도값에 따라 다른 주파수와 소리 지속 시간, 소리 대기 시간이 존재함.
-    * <img src="https://github.com/user-attachments/assets/27d8d720-a6f5-44b3-8561-f2664e0d9454" width="50%" />
+    * <img src="https://github.com/user-attachments/assets/de122de4-284f-4aa0-be5b-d4271abc755c" alt="image" width="50%" />
+
+
 
 
 
